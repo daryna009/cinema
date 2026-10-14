@@ -10,6 +10,7 @@ class Review:
     def get_info(self) -> str:
         return f"Оцінка: {self.rating}/5 від {self.author} | '{self.comment}'"
 
+
 class DiscountVoucher:
     def __init__(self, code: str, discount_percent: float, is_active: bool = True):
         self.code = code
@@ -21,6 +22,48 @@ class DiscountVoucher:
             self.is_active = False
             return self.discount_percent
         return 0.0
+
+
+class Movie:
+    def __init__(self, title: str, duration: int, genre: str, min_age: int):
+        self.title = title
+        self.duration = duration
+        self.genre = genre
+        self.min_age = min_age
+        self.reviews = []
+
+    def add_review(self, review: Review):
+        self.reviews.append(review)
+        print(f"Додано новий відгук до фільму '{self.title}'!")
+
+    def get_average_rating(self) -> float:
+        if not self.reviews:
+            return 0.0
+        return sum(r.rating for r in self.reviews) / len(self.reviews)
+
+    def get_info(self) -> str:
+        rating_str = f", Рейтинг: {self.get_average_rating():.1f}/5" if self.reviews else ""
+        return f"Фільм: '{self.title}' ({self.genre}, {self.duration} хв, {self.min_age}+{rating_str})"
+
+    def is_allowed_for_age(self, age: int) -> bool:
+        return age >= self.min_age
+
+
+class Seat:
+    def __init__(self, row: int, number: int):
+        self.row = row
+        self.number = number
+        self.is_booked = False
+
+    def book(self) -> bool:
+        if not self.is_booked:
+            self.is_booked = True
+            return True
+        return False
+
+    def cancel_booking(self):
+        self.is_booked = False
+
 
 class CinemaHall:
     def __init__(self, name: str, rows: int, seats_per_row: int):
@@ -37,7 +80,6 @@ class CinemaHall:
         return None
 
 
-# === ДОДАНИЙ КЛАС 1: Снек (Товар бару) ===
 class Snack:
     def __init__(self, name: str, price: float, size: str = "Середній"):
         self.name = name
@@ -46,6 +88,28 @@ class Snack:
 
     def get_info(self) -> str:
         return f"Снек: {self.name} ({self.size}) — {self.price:.2f} грн"
+
+
+class Employee:
+    def __init__(self, name: str, position: str, salary: float):
+        self.name = name
+        self.position = position
+        self.salary = salary
+
+    def get_info(self) -> str:
+        return f"Працівник: {self.name} | Посада: {self.position} | Зарплата: {self.salary:.2f} грн"
+
+
+class Schedule:
+    def __init__(self, movie: Movie, hall: CinemaHall, time: str, ticket_price: float):
+        self.movie = movie
+        self.hall = hall
+        self.time = time
+        self.ticket_price = ticket_price
+
+    def get_info(self) -> str:
+        return f"Сеанс: '{self.movie.title}' о {self.time} у залі '{self.hall.name}' (Ціна: {self.ticket_price} грн)"
+
 
 class Ticket:
     def __init__(self, movie_title: str, seat_info: str, price: float):
@@ -59,17 +123,122 @@ class Ticket:
     def print_ticket(self):
         print(f"- Квиток: {self.movie_title} | Місце: {self.seat_info} | Ціна: {self.price:.2f} грн ---")
 
+
+class Cinema:
+    def __init__(self, name: str, popcorn_stock: int):
+        self.name = name
+        self.halls = []
+        self.employees = []  # Список працівників
+        self.snacks = []     # Асортимент снеків
+        self.balance = 0.0
+        self.popcorn_stock = popcorn_stock
+
+    def add_hall(self, hall: CinemaHall):
+        self.halls.append(hall)
+
+    def add_employee(self, employee: Employee):
+        self.employees.append(employee)
+        print(f"Прийнято на роботу: {employee.name} ({employee.position})")
+
+    def add_snack(self, snack: Snack):
+        self.snacks.append(snack)
+
+    def sell_ticket(
+        self,
+        hall: CinemaHall,
+        row: int,
+        number: int,
+        movie: Movie,
+        base_price: float,
+        age: int,
+        voucher: DiscountVoucher = None,
+    ):
+        if not movie.is_allowed_for_age(age):
+            print(f"Помилка: Відвідувачу ({age} р.) заборонено перегляд фільму '{movie.title}' ({movie.min_age}+).")
+            return None
+
+        seat = hall.get_seat(row, number)
+        if seat and seat.book():
+            ticket = Ticket(movie.title, f"Ряд {row}, Місце {number}", base_price)
+
+            if age < 18:
+                ticket.apply_discount(20)
+
+            if voucher:
+                discount = voucher.use()
+                if discount > 0:
+                    ticket.apply_discount(discount)
+                    print(f"Застосовано промокод '{voucher.code}' (-{discount}%)!")
+                else:
+                    print(f"Промокод '{voucher.code}' недійсний або вже використаний.")
+
+            self.balance += ticket.price
+            ticket.print_ticket()
+            return ticket
+        else:
+            print(f"Помилка: Місце (Ряд {row}, Місце {number}) зайняте або не існує!")
+            return None
+
+    def sell_popcorn(self, portion_count: int, price_per_portion: float = 100.0):
+        if self.popcorn_stock >= portion_count:
+            self.popcorn_stock -= portion_count
+            total = portion_count * price_per_portion
+            self.balance += total
+            print(f"Продано попкорн: {portion_count} шт. на суму {total} грн.")
+        else:
+            print(f"Недостатньо попкорну в наявності! Залишок: {self.popcorn_stock} шт.")
+
+    def restock_popcorn(self, amount: int):
+        self.popcorn_stock += amount
+        print(f"Запас попкорну поповнено на {amount} шт. Всього: {self.popcorn_stock} шт.")
+
+    def get_total_revenue(self) -> float:
+        return self.balance
+
+
 if __name__ == "__main__":
     cinema = Cinema("Multiplex", popcorn_stock=5)
     hall1 = CinemaHall("Зал 1 (IMAX)", rows=2, seats_per_row=2)
     cinema.add_hall(hall1)
 
-    # Демонстрація роботи нових класів: Employee та Snack
     print("--- Оформлення персоналу та бару ---")
     emp1 = Employee("Олександр", "Касир", 15000.0)
     emp2 = Employee("Ольга", "Адміністратор", 22000.0)
     cinema.add_employee(emp1)
     cinema.add_employee(emp2)
+
+    snack1 = Snack("Кока-кола", 60.0, "Великий")
+    snack2 = Snack("Начос з сирним соусом", 120.0, "Стандартний")
+    cinema.add_snack(snack1)
+    cinema.add_snack(snack2)
+    print(f"Доступні товари в барі: {snack1.name}, {snack2.name}\n")
+
+    movies_catalog = [
+        Movie("Мавка", 90, "Анімація", 0),
+        Movie("Гаррі Поттер", 152, "Фентезі", 6),
+        Movie("Інтерстеллар", 169, "Фантастика", 12),
+        Movie("Дюна 2", 166, "Фантастика", 16),
+        Movie("Оппенгеймер", 180, "Біографія", 16),
+        Movie("Дедпул і Росомаха", 128, "Екшн", 18),
+    ]
+
+    selected_movies = random.sample(movies_catalog, 2)
+    movie1, movie2 = selected_movies[0], selected_movies[1]
+
+    print("--- Формування розкладу сеансів ---")
+    schedule1 = Schedule(movie1, hall1, "14:30", 150.0)
+    print(schedule1.get_info())
+    print()
+
+    voucher10 = DiscountVoucher(code="SALE10", discount_percent=10)
+
+    print("--- Робота з відгуками (Review) ---")
+    movie1.add_review(Review("Андрій", 5, "Чудовий фільм, неймовірна графіка!"))
+    movie1.add_review(Review("Марія", 4, "Загалом сподобалося, але трохи затягнуто."))
+
+    print(f"\n--- Сьогодні у прокаті обрано фільми: ---")
+    print(f"1. {movie1.get_info()}")
+    print(f"2. {movie2.get_info()}\n")
 
 print("\n--- Продаж квитків з використанням промокодів ---")
 print(f"1. Спроба придбати квиток на '{movie1.title}' для підлітка (15 років) з промокодом SALE10:")
