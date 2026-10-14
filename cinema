@@ -9,3 +9,14 @@ class Review:
 
     def get_info(self) -> str:
         return f"Оцінка: {self.rating}/5 від {self.author} | '{self.comment}'"
+class DiscountVoucher:
+    def __init__(self, code: str, discount_percent: float, is_active: bool = True):
+        self.code = code
+        self.discount_percent = discount_percent
+        self.is_active = is_active
+
+    def use(self) -> float:
+        if self.is_active:
+            self.is_active = False
+            return self.discount_percent
+        return 0.0
