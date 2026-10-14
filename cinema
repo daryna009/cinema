@@ -1,0 +1,11 @@
+import random
+
+
+class Review:
+    def __init__(self, author: str, rating: int, comment: str):
+        self.author = author
+        self.rating = max(1, min(5, rating))
+        self.comment = comment
+
+    def get_info(self) -> str:
+        return f"Оцінка: {self.rating}/5 від {self.author} | '{self.comment}'"
